@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WebApplication.Models;
 using WebApplication.Data;
+using WebApplication.DTOs;
 
 namespace WebApplication.Controllers
 {
@@ -20,7 +21,19 @@ namespace WebApplication.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Consola>>> GetConsola()
         {
-            return await _context.Consolas.ToListAsync();
+            var consolas = await _context.Consolas
+                .Select(c => new ConsolaDTO
+                {
+                    Id = c.Id,
+                    Nombre = c.Nombre,
+                    Marca = c.Marca,
+                    TarifaPorHora = c.TarifaPorHora,
+                    Disponible = c.Disponible
+
+                })
+                .ToListAsync();
+
+            return Ok(consolas);
         }
 
         // GET: api/Consola/5
@@ -34,36 +47,41 @@ namespace WebApplication.Controllers
                 return NotFound();
             }
 
-            return consola;
+            var consolaDTO = new ConsolaDTO
+            {
+                Id = consola.Id,
+                Nombre = consola.Nombre,
+                Marca = consola.Marca,
+                TarifaPorHora = consola.TarifaPorHora,
+                Disponible = consola.Disponible
+            };
+
+            return Ok(consolaDTO);
         }
 
         // PUT: api/Consola/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutConsola(int id, Consola consola)
+        public async Task<IActionResult> PutConsola(int id, ConsolaDTO consolaDTO)
         {
-            if (id != consola.Id)
+            if (id != consolaDTO.Id)
             {
                 return BadRequest();
             }
 
-            _context.Entry(consola).State = EntityState.Modified;
+            var consola = await _context.Consolas.FindAsync(id);
 
-            try
+            if (consola == null)
             {
-                await _context.SaveChangesAsync();
+                return NotFound();
             }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!ConsolaExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
+
+            consola.Nombre = consolaDTO.Nombre;
+            consola.Marca = consolaDTO.Marca;
+            consola.TarifaPorHora = consolaDTO.TarifaPorHora;
+            consola.Disponible = consolaDTO.Disponible;
+
+            await _context.SaveChangesAsync();
 
             return NoContent();
         }
@@ -71,33 +89,44 @@ namespace WebApplication.Controllers
         // POST: api/Consola
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<Consola>> PostConsola(Consola consola)
+        public async Task<ActionResult<ConsolaDTO>> PostConsola(ConsolaDTO consolaDTO)
         {
+            var consola = new Consola
+            {
+                Nombre = consolaDTO.Nombre,
+                Marca = consolaDTO.Marca,
+                TarifaPorHora = consolaDTO.TarifaPorHora,
+                Disponible = consolaDTO.Disponible
+            };
+
             _context.Consolas.Add(consola);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetConsola", new { id = consola.Id }, consola);
+            consolaDTO.Id = consola.Id;
+
+            return CreatedAtAction(
+                nameof(GetConsola),
+                new { id = consola.Id },
+                consolaDTO
+            );
         }
 
-        // DELETE: api/Consola/5
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteConsola(int id)
-        {
-            var consola = await _context.Consolas.FindAsync(id);
-            if (consola == null)
+            // DELETE: api/Consola/5
+            [HttpDelete("{id}")]
+            public async Task<IActionResult> DeleteConsola(int id)
+
             {
-                return NotFound();
+                var consola = await _context.Consolas.FindAsync(id);
+
+                if (consola == null)
+                {
+                    return NotFound();
+                }
+
+                _context.Consolas.Remove(consola);
+                await _context.SaveChangesAsync();
+
+                return NoContent();
             }
-
-            _context.Consolas.Remove(consola);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
-        }
-
-        private bool ConsolaExists(int id)
-        {
-            return _context.Consolas.Any(e => e.Id == id);
         }
     }
-}
