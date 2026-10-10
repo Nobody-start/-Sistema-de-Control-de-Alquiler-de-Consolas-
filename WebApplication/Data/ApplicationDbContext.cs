@@ -1,10 +1,9 @@
-﻿
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using WebApplication.Models;
 
 namespace WebApplication.Data
 {
-    public class ApplicationDbContext
+    public class ApplicationDbContext : DbContext
     {
         public ApplicationDbContext(
             DbContextOptions<ApplicationDbContext> options)
