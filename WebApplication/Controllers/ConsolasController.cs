@@ -128,5 +128,24 @@ namespace WebApplication.Controllers
 
                 return NoContent();
             }
+
+        [HttpGet("disponibles")]
+        public async Task<ActionResult<IEnumerable<ConsolaDTO>>> GetConsolasDisponibles()
+        {
+            var consolas = await _context.Consolas
+                .Where(c => c.Disponible)
+                .Select(c => new ConsolaDTO
+                {
+                    Id = c.Id,
+                    Nombre = c.Nombre,
+                    Marca = c.Marca,
+                    TarifaPorHora = c.TarifaPorHora,
+                    Disponible = c.Disponible
+                })
+                .ToListAsync();
+
+            return Ok(consolas);
         }
+    }
+
     }
