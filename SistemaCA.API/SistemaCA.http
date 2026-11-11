@@ -1,6 +1,0 @@
-@SistemaCA.API_HostAddress = http://localhost:5073
-
-GET {{SistemaCA.API_HostAddress}}
-Accept: application/json
-
-###
