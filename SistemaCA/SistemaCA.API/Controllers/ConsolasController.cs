@@ -1,7 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
+using SistemaCA.Application.Contract;
+using SistemaCA.Application.Dtos.Consola;
+using SistemaCA.Application.Dtos.Department.Consola;
 using SistemaCA.Domain.Entities;
-using SistemaCA.Infrastructure.Interfaces;
-using SistemaCA.API.DTOs;
 
 namespace SistemaCA.API.Controllers
 {
@@ -9,19 +10,19 @@ namespace SistemaCA.API.Controllers
     [ApiController]
     public class ConsolasController : ControllerBase
     {
-        private readonly IConsolaRepository _repository;
+        private readonly IConsolaService _consolaService;
 
-        public ConsolasController(IConsolaRepository repository)
+        public ConsolasController(IConsolaService consolaService)
         {
-            _repository = repository;
+            _consolaService = consolaService;
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<ConsolaDTOs>>> GetConsolas()
+        public async Task<ActionResult<IEnumerable<ConsolaDto>>> GetConsolas()
         {
-            var consolas = await _repository.GetAllAsync();
+            var consolas = await _consolaService.GetAllAsync();
 
-            var resultado = consolas.Select(c => new ConsolaDTOs
+            var resultado = consolas.Select(c => new ConsolaDto
             {
                 Id = c.Id,
                 Nombre = c.Nombre,
@@ -34,14 +35,14 @@ namespace SistemaCA.API.Controllers
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<ConsolaDTOs>> GetConsola(int id)
+        public async Task<ActionResult<ConsolaDto>> GetConsola(int id)
         {
-            var consola = await _repository.GetByIdAsync(id);
+            var consola = await _consolaService.GetByIdAsync(id);
 
             if (consola == null)
                 return NotFound();
 
-            var dto = new ConsolaDTOs
+            var dto = new ConsolaDto
             {
                 Id = consola.Id,
                 Nombre = consola.Nombre,
@@ -54,7 +55,7 @@ namespace SistemaCA.API.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<ConsolaDTOs>> PostConsola(ConsolaDTOs dto)
+        public async Task<ActionResult<ConsolaDto>> PostConsola(CrearConsolaDto dto)
         {
             var consola = new Consola
             {
@@ -64,30 +65,39 @@ namespace SistemaCA.API.Controllers
                 Disponible = dto.Disponible
             };
 
-            await _repository.AddAsync(consola);
+            var resultado = await _consolaService.CreateAsync(consola);
 
-            dto.Id = consola.Id;
+            var consolaDto = new ConsolaDto
+            {
+                Id = resultado.Id,
+                Nombre = resultado.Nombre,
+                Marca = resultado.Marca,
+                TarifaPorHora = resultado.TarifaPorHora,
+                Disponible = resultado.Disponible
+            };
 
-            return CreatedAtAction(nameof(GetConsola), new { id = consola.Id }, dto);
+            return CreatedAtAction(
+                nameof(GetConsola),
+                new { id = resultado.Id },
+                consolaDto
+            );
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutConsola(int id, ConsolaDTOs dto)
+        public async Task<IActionResult> PutConsola(int id, ActualizarConsolaDto dto)
         {
-            if (id != dto.Id)
-                return BadRequest();
+            var consola = new Consola
+            {
+                Nombre = dto.Nombre,
+                Marca = dto.Marca,
+                TarifaPorHora = dto.TarifaPorHora,
+                Disponible = dto.Disponible
+            };
 
-            var consola = await _repository.GetByIdAsync(id);
+            var resultado = await _consolaService.UpdateAsync(id, consola);
 
-            if (consola == null)
+            if (resultado == null)
                 return NotFound();
-
-            consola.Nombre = dto.Nombre;
-            consola.Marca = dto.Marca;
-            consola.TarifaPorHora = dto.TarifaPorHora;
-            consola.Disponible = dto.Disponible;
-
-            await _repository.UpdateAsync(consola);
 
             return NoContent();
         }
@@ -95,24 +105,22 @@ namespace SistemaCA.API.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteConsola(int id)
         {
-            var consola = await _repository.GetByIdAsync(id);
+            var eliminado = await _consolaService.DeleteAsync(id);
 
-            if (consola == null)
+            if (!eliminado)
                 return NotFound();
-
-            await _repository.DeleteAsync(id);
 
             return NoContent();
         }
 
         [HttpGet("disponibles")]
-        public async Task<ActionResult<IEnumerable<ConsolaDTOs>>> GetConsolasDisponibles()
+        public async Task<ActionResult<IEnumerable<ConsolaDto>>> GetConsolasDisponibles()
         {
-            var consolas = await _repository.GetAllAsync();
+            var consolas = await _consolaService.GetAllAsync();
 
             var resultado = consolas
                 .Where(c => c.Disponible)
-                .Select(c => new ConsolaDTOs
+                .Select(c => new ConsolaDto
                 {
                     Id = c.Id,
                     Nombre = c.Nombre,

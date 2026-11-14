@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using SistemaCA.Application.Contract;
+using SistemaCA.Application.Dtos.Alquiler;
 using SistemaCA.Domain.Entities;
-using SistemaCA.Infrastructure.Interfaces;
-using SistemaCA.API.DTOs;
 
 namespace SistemaCA.API.Controllers
 {
@@ -9,26 +9,26 @@ namespace SistemaCA.API.Controllers
     [ApiController]
     public class AlquileresController : ControllerBase
     {
-        private readonly IAlquilerRepository _alquilerRepository;
-        private readonly IClienteRepository _clienteRepository;
-        private readonly IConsolaRepository _consolaRepository;
+        private readonly IAlquilerService _alquilerService;
+        private readonly IClienteService _clienteService;
+        private readonly IConsolaService _consolaService;
 
         public AlquileresController(
-            IAlquilerRepository alquilerRepository,
-            IClienteRepository clienteRepository,
-            IConsolaRepository consolaRepository)
+            IAlquilerService alquilerService,
+            IClienteService clienteService,
+            IConsolaService consolaService)
         {
-            _alquilerRepository = alquilerRepository;
-            _clienteRepository = clienteRepository;
-            _consolaRepository = consolaRepository;
+            _alquilerService = alquilerService;
+            _clienteService = clienteService;
+            _consolaService = consolaService;
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<AlquilerDTOs>>> GetAlquileres()
+        public async Task<ActionResult<IEnumerable<AlquilerDto>>> GetAlquileres()
         {
-            var alquileres = await _alquilerRepository.GetAllAsync();
+            var alquileres = await _alquilerService.GetAllAsync();
 
-            var resultado = alquileres.Select(a => new AlquilerDTOs
+            var resultado = alquileres.Select(a => new AlquilerDto
             {
                 Id = a.Id,
                 ConsolaId = a.ConsolaId,
@@ -44,14 +44,14 @@ namespace SistemaCA.API.Controllers
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<AlquilerDTOs>> GetAlquiler(int id)
+        public async Task<ActionResult<AlquilerDto>> GetAlquiler(int id)
         {
-            var alquiler = await _alquilerRepository.GetByIdAsync(id);
+            var alquiler = await _alquilerService.GetByIdAsync(id);
 
             if (alquiler == null)
                 return NotFound();
 
-            var dto = new AlquilerDTOs
+            var dto = new AlquilerDto
             {
                 Id = alquiler.Id,
                 ConsolaId = alquiler.ConsolaId,
@@ -67,14 +67,14 @@ namespace SistemaCA.API.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<AlquilerDTOs>> PostAlquiler(AlquilerDTOs dto)
+        public async Task<ActionResult<AlquilerDto>> PostAlquiler(CrearAlquilerDto dto)
         {
-            var consola = await _consolaRepository.GetByIdAsync(dto.ConsolaId);
+            var consola = await _consolaService.GetByIdAsync(dto.ConsolaId);
 
             if (consola == null)
                 return BadRequest("La consola indicada no existe.");
 
-            var cliente = await _clienteRepository.GetByIdAsync(dto.ClienteId);
+            var cliente = await _clienteService.GetByIdAsync(dto.ClienteId);
 
             if (cliente == null)
                 return BadRequest("El cliente indicado no existe.");
@@ -88,39 +88,51 @@ namespace SistemaCA.API.Controllers
                 ClienteId = dto.ClienteId,
                 FechaInicio = dto.FechaInicio,
                 FechaDevolucionPrevista = dto.FechaDevolucionPrevista,
-                FechaDevolucionReal = dto.FechaDevolucionReal,
-                Total = dto.Total,
                 Estado = "Activo"
             };
 
             consola.Disponible = false;
 
-            await _consolaRepository.UpdateAsync(consola);
-            await _alquilerRepository.AddAsync(alquiler);
+            await _consolaService.UpdateAsync(consola.Id, consola);
 
-            dto.Id = alquiler.Id;
-            dto.Estado = alquiler.Estado;
+            var resultado = await _alquilerService.CreateAsync(alquiler);
 
-            return CreatedAtAction(nameof(GetAlquiler), new { id = alquiler.Id }, dto);
+            var alquilerDto = new AlquilerDto
+            {
+                Id = resultado.Id,
+                ConsolaId = resultado.ConsolaId,
+                ClienteId = resultado.ClienteId,
+                FechaInicio = resultado.FechaInicio,
+                FechaDevolucionPrevista = resultado.FechaDevolucionPrevista,
+                FechaDevolucionReal = resultado.FechaDevolucionReal,
+                Total = resultado.Total,
+                Estado = resultado.Estado
+            };
+
+            return CreatedAtAction(
+                nameof(GetAlquiler),
+                new { id = resultado.Id },
+                alquilerDto
+            );
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutAlquiler(int id, AlquilerDTOs dto)
+        public async Task<IActionResult> PutAlquiler(
+            int id,
+            ActualizarAlquilerDto dto)
         {
-            if (id != dto.Id)
-                return BadRequest();
+            var alquiler = new Alquiler
+            {
+                FechaDevolucionPrevista = dto.FechaDevolucionPrevista,
+                FechaDevolucionReal = dto.FechaDevolucionReal,
+                Total = dto.Total,
+                Estado = dto.Estado
+            };
 
-            var alquiler = await _alquilerRepository.GetByIdAsync(id);
+            var resultado = await _alquilerService.UpdateAsync(id, alquiler);
 
-            if (alquiler == null)
+            if (resultado == null)
                 return NotFound();
-
-            alquiler.FechaDevolucionPrevista = dto.FechaDevolucionPrevista;
-            alquiler.FechaDevolucionReal = dto.FechaDevolucionReal;
-            alquiler.Total = dto.Total;
-            alquiler.Estado = dto.Estado;
-
-            await _alquilerRepository.UpdateAsync(alquiler);
 
             return NoContent();
         }
@@ -128,12 +140,10 @@ namespace SistemaCA.API.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteAlquiler(int id)
         {
-            var alquiler = await _alquilerRepository.GetByIdAsync(id);
+            var eliminado = await _alquilerService.DeleteAsync(id);
 
-            if (alquiler == null)
+            if (!eliminado)
                 return NotFound();
-
-            await _alquilerRepository.DeleteAsync(id);
 
             return NoContent();
         }

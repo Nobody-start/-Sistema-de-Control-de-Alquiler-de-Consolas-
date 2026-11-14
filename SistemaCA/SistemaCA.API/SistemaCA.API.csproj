@@ -19,7 +19,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\SistemaCA\SistemaCA.Infrastructure\SistemaCA.Infrastructure.csproj" />
+    <ProjectReference Include="..\SistemaCA.Application\SistemaCA.Application.csproj" />
+    <ProjectReference Include="..\SistemaCA.Infrastructure\SistemaCA.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,5 +1,6 @@
 <Solution>
-  <Project Path="../SistemaCA.API/SistemaCA.API.csproj" />
+  <Project Path="SistemaCA.API/SistemaCA.API.csproj" />
+  <Project Path="SistemaCA.Application/SistemaCA.Application.csproj" Id="297b7b45-171d-461b-a710-a5cbf038399b" />
   <Project Path="SistemaCA.Domain/SistemaCA.Domain.csproj" />
   <Project Path="SistemaCA.Infrastructure/SistemaCA.Infrastructure.csproj" />
 </Solution>

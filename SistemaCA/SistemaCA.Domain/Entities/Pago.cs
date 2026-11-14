@@ -5,8 +5,6 @@ namespace SistemaCA.Domain.Entities
     public class Pago : BaseEntity
     {
 
-        public int Id { get; set; }
-
         public int AlquilerId { get; set; }
         public Alquiler? Alquiler { get; set; }
 

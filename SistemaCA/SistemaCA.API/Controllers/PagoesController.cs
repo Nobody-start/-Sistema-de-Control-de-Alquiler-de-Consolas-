@@ -1,7 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
-using SistemaCA.Domain.Entities;
-using SistemaCA.Infrastructure.Interfaces;
 using SistemaCA.API.DTOs;
+using SistemaCA.Application.Contract;
+using SistemaCA.Application.Dtos.Pago;
+using SistemaCA.Domain.Entities;
 
 namespace SistemaCA.API.Controllers
 {
@@ -9,21 +10,21 @@ namespace SistemaCA.API.Controllers
     [ApiController]
     public class PagosController : ControllerBase
     {
-        private readonly IPagoRepository _pagoRepository;
-        private readonly IAlquilerRepository _alquilerRepository;
+        private readonly IPagoService _pagoService;
+        private readonly IAlquilerService _alquilerService;
 
         public PagosController(
-            IPagoRepository pagoRepository,
-            IAlquilerRepository alquilerRepository)
+            IPagoService pagoService,
+            IAlquilerService alquilerService)
         {
-            _pagoRepository = pagoRepository;
-            _alquilerRepository = alquilerRepository;
+            _pagoService = pagoService;
+            _alquilerService = alquilerService;
         }
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<PagoDTOs>>> GetPagos()
         {
-            var pagos = await _pagoRepository.GetAllAsync();
+            var pagos = await _pagoService.GetAllAsync();
 
             var resultado = pagos.Select(p => new PagoDTOs
             {
@@ -40,7 +41,7 @@ namespace SistemaCA.API.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<PagoDTOs>> GetPago(int id)
         {
-            var pago = await _pagoRepository.GetByIdAsync(id);
+            var pago = await _pagoService.GetByIdAsync(id);
 
             if (pago == null)
                 return NotFound();
@@ -58,9 +59,9 @@ namespace SistemaCA.API.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<PagoDTOs>> PostPago(PagoDTOs dto)
+        public async Task<ActionResult<PagoDTOs>> PostPago(CrearPagoDto dto)
         {
-            var alquiler = await _alquilerRepository.GetByIdAsync(dto.AlquilerId);
+            var alquiler = await _alquilerService.GetByIdAsync(dto.AlquilerId);
 
             if (alquiler == null)
                 return BadRequest("El alquiler indicado no existe.");
@@ -69,39 +70,48 @@ namespace SistemaCA.API.Controllers
             {
                 AlquilerId = dto.AlquilerId,
                 Monto = dto.Monto,
-                FechaPago = dto.FechaPago,
                 MetodoPago = dto.MetodoPago
             };
 
-            await _pagoRepository.AddAsync(pago);
+            var resultado = await _pagoService.CreateAsync(pago);
 
-            dto.Id = pago.Id;
+            var pagoDto = new PagoDTOs
+            {
+                Id = resultado.Id,
+                AlquilerId = resultado.AlquilerId,
+                Monto = resultado.Monto,
+                FechaPago = resultado.FechaPago,
+                MetodoPago = resultado.MetodoPago
+            };
 
-            return CreatedAtAction(nameof(GetPago), new { id = pago.Id }, dto);
+            return CreatedAtAction(
+                nameof(GetPago),
+                new { id = resultado.Id },
+                pagoDto
+            );
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutPago(int id, PagoDTOs dto)
+        public async Task<IActionResult> PutPago(
+            int id,
+            ActualizarPagoDto dto)
         {
-            if (id != dto.Id)
-                return BadRequest();
-
-            var pago = await _pagoRepository.GetByIdAsync(id);
-
-            if (pago == null)
-                return NotFound();
-
-            var alquiler = await _alquilerRepository.GetByIdAsync(dto.AlquilerId);
+            var alquiler = await _alquilerService.GetByIdAsync(dto.AlquilerId);
 
             if (alquiler == null)
                 return BadRequest("El alquiler indicado no existe.");
 
-            pago.AlquilerId = dto.AlquilerId;
-            pago.Monto = dto.Monto;
-            pago.FechaPago = dto.FechaPago;
-            pago.MetodoPago = dto.MetodoPago;
+            var pago = new Pago
+            {
+                AlquilerId = dto.AlquilerId,
+                Monto = dto.Monto,
+                MetodoPago = dto.MetodoPago
+            };
 
-            await _pagoRepository.UpdateAsync(pago);
+            var resultado = await _pagoService.UpdateAsync(id, pago);
+
+            if (resultado == null)
+                return NotFound();
 
             return NoContent();
         }
@@ -109,12 +119,10 @@ namespace SistemaCA.API.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeletePago(int id)
         {
-            var pago = await _pagoRepository.GetByIdAsync(id);
+            var eliminado = await _pagoService.DeleteAsync(id);
 
-            if (pago == null)
+            if (!eliminado)
                 return NotFound();
-
-            await _pagoRepository.DeleteAsync(id);
 
             return NoContent();
         }

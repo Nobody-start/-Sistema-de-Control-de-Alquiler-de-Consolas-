@@ -1,7 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
+using SistemaCA.Application.Contract;
+using SistemaCA.Application.Dtos.Cliente;
+using SistemaCA.Application.Dtos.Department.Clientes;
 using SistemaCA.Domain.Entities;
-using SistemaCA.Infrastructure.Interfaces;
-using SistemaCA.API.DTOs;
 
 namespace SistemaCA.API.Controllers
 {
@@ -9,19 +10,19 @@ namespace SistemaCA.API.Controllers
     [ApiController]
     public class ClientesController : ControllerBase
     {
-        private readonly IClienteRepository _repository;
+        private readonly IClienteService _clienteService;
 
-        public ClientesController(IClienteRepository repository)
+        public ClientesController(IClienteService clienteService)
         {
-            _repository = repository;
+            _clienteService = clienteService;
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<ClienteDTOs>>> GetClientes()
+        public async Task<ActionResult<IEnumerable<ClienteDto>>> GetClientes()
         {
-            var clientes = await _repository.GetAllAsync();
+            var clientes = await _clienteService.GetAllAsync();
 
-            var resultado = clientes.Select(c => new ClienteDTOs
+            var resultado = clientes.Select(c => new ClienteDto
             {
                 Id = c.Id,
                 Nombre = c.Nombre,
@@ -33,14 +34,14 @@ namespace SistemaCA.API.Controllers
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<ClienteDTOs>> GetCliente(int id)
+        public async Task<ActionResult<ClienteDto>> GetCliente(int id)
         {
-            var cliente = await _repository.GetByIdAsync(id);
+            var cliente = await _clienteService.GetByIdAsync(id);
 
             if (cliente == null)
                 return NotFound();
 
-            var dto = new ClienteDTOs
+            var dto = new ClienteDto
             {
                 Id = cliente.Id,
                 Nombre = cliente.Nombre,
@@ -52,7 +53,7 @@ namespace SistemaCA.API.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<ClienteDTOs>> PostCliente(ClienteDTOs dto)
+        public async Task<ActionResult<ClienteDto>> PostCliente(CrearClienteDto dto)
         {
             var cliente = new Cliente
             {
@@ -61,29 +62,37 @@ namespace SistemaCA.API.Controllers
                 Correo = dto.Correo
             };
 
-            await _repository.AddAsync(cliente);
+            var resultado = await _clienteService.CreateAsync(cliente);
 
-            dto.Id = cliente.Id;
+            var clienteDto = new ClienteDto
+            {
+                Id = resultado.Id,
+                Nombre = resultado.Nombre,
+                Telefono = resultado.Telefono,
+                Correo = resultado.Correo
+            };
 
-            return CreatedAtAction(nameof(GetCliente), new { id = cliente.Id }, dto);
+            return CreatedAtAction(
+                nameof(GetCliente),
+                new { id = resultado.Id },
+                clienteDto
+            );
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutCliente(int id, ClienteDTOs dto)
+        public async Task<IActionResult> PutCliente(int id, ActualizarClienteDto dto)
         {
-            if (id != dto.Id)
-                return BadRequest();
+            var cliente = new Cliente
+            {
+                Nombre = dto.Nombre,
+                Telefono = dto.Telefono,
+                Correo = dto.Correo
+            };
 
-            var cliente = await _repository.GetByIdAsync(id);
+            var resultado = await _clienteService.UpdateAsync(id, cliente);
 
-            if (cliente == null)
+            if (resultado == null)
                 return NotFound();
-
-            cliente.Nombre = dto.Nombre;
-            cliente.Telefono = dto.Telefono;
-            cliente.Correo = dto.Correo;
-
-            await _repository.UpdateAsync(cliente);
 
             return NoContent();
         }
@@ -91,12 +100,10 @@ namespace SistemaCA.API.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteCliente(int id)
         {
-            var cliente = await _repository.GetByIdAsync(id);
+            var eliminado = await _clienteService.DeleteAsync(id);
 
-            if (cliente == null)
+            if (!eliminado)
                 return NotFound();
-
-            await _repository.DeleteAsync(id);
 
             return NoContent();
         }
